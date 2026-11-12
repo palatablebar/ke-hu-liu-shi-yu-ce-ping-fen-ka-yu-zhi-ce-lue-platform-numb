@@ -1,0 +1,40 @@
+/* Nautical survey chart palette — warm chart paper, deep indigo ink, muted sea tones.
+   No pure black/white, no cyan neon, no gradient text. */
+:root {
+  --paper: oklch(94.8% 0.026 90);
+  --paper-2: oklch(91.4% 0.03 88);
+  --paper-3: oklch(87.6% 0.034 86);
+  --paper-deep: oklch(82.5% 0.038 84);
+  --ink: oklch(28% 0.052 266);
+  --ink-2: oklch(38% 0.045 264);
+  --ink-3: oklch(52% 0.032 260);
+  --ink-4: oklch(64% 0.024 258);
+  --indigo: oklch(33% 0.072 266);
+  --indigo-deep: oklch(23.5% 0.058 268);
+  --indigo-soft: oklch(43% 0.06 264);
+  --sea: oklch(47% 0.045 200);
+  --sea-soft: oklch(89% 0.026 196);
+  --sand: oklch(86% 0.045 84);
+  --rust: oklch(52% 0.095 45);
+  --rust-soft: oklch(90% 0.038 55);
+  --danger: oklch(48% 0.12 28);
+  --danger-soft: oklch(91% 0.032 25);
+  --ok: oklch(47% 0.06 152);
+  --ok-soft: oklch(90% 0.028 150);
+  --rule: oklch(76% 0.032 84);
+  --rule-soft: oklch(84% 0.026 86);
+
+  --font-display: 'Marcellus', 'Songti SC', 'Noto Serif SC', Georgia, serif;
+  --font-mono: 'Noto Sans Mono', 'PingFang SC', 'Hiragino Sans GB', ui-monospace, monospace;
+
+  --step--1: clamp(0.72rem, 0.7rem + 0.1vw, 0.78rem);
+  --step-0: clamp(0.82rem, 0.79rem + 0.13vw, 0.9rem);
+  --step-1: clamp(0.95rem, 0.91rem + 0.22vw, 1.06rem);
+  --step-2: clamp(1.16rem, 1.07rem + 0.45vw, 1.38rem);
+  --step-3: clamp(1.45rem, 1.27rem + 0.9vw, 1.9rem);
+  --step-4: clamp(1.85rem, 1.5rem + 1.7vw, 2.75rem);
+
+  --radius: 2px;
+  --shadow-plate: 0 1px 0 var(--rule-soft), 0 18px 40px -30px oklch(32% 0.06 266 / 0.6);
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
