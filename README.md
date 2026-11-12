@@ -29,7 +29,7 @@
 | `AccountFeature` | `account_features` | 月度特征快照（自然键 account+month，含 `churn_next_30d` 标签），5 个月 × 240 = 1,200 行 |
 | `FeatureSet` | `feature_sets` | 特征集定义、训练 4 个月 / 验证第 5 个月（时间切分防泄漏） |
 | `ModelRun` | `model_runs` | 训练批次：系数、标准化参数、AUC/PR、ROC/PR 散点、阈值扫描、混淆矩阵 |
-| `ScoreBatch` | `score_batches` | 评分批次：阈值、预算、分档、Top-K 名单与原因、发布状态 |
+| `ScoreBatch` | `score_batches` | 评分批次：阈值、预算、分档、Top-K 名单与原因、策略生命周期（draft 草稿 / active 现行策略 / archived 历史版本） |
 
 每个实体都贯穿：表 → model → schema → service → controller → route → 前端 api → store → 页面/组件。
 
@@ -57,7 +57,20 @@
 2. **客户风险图** `/accounts`：评分名单、分数条、风险档、Top1 原因、预算内排名；点开客户抽屉看月度走势与 Top3 原因
 3. **模型评估** `/models`：训练批次、AUC/PR-AUC、ROC 曲线、阈值-精确率/召回率曲线、混淆矩阵、样本不均衡告警
 4. **特征与权重** `/features`：特征集口径、回归系数条（红推高/绿降低）、数值特征统计与相关系数、类别特征流失率
-5. **阈值策略与触达预算** `/scores`：批次编年、阈值扫描表、预算表单、Top-K 名单、发布策略（admin）、导出 CSV
+5. **阈值策略与触达预算** `/scores`：草稿/现行/历史三态编年、候选差异（参数 + 名单进出）、预算表单、Top-K 名单、一次性发布切换（admin）、导出现行策略 CSV
+
+### 5.1 策略生命周期（草稿 / 现行 / 历史）
+
+| 阶段 | `lifecycle` | 含义 | 约束 |
+|---|---|---|---|
+| 草稿 | `draft` | 新建评分批次的候选，仅供策略台查看与差异对比 | 不驱动风险图与导出；`policy_fingerprint` 在未归档版本中唯一 |
+| 现行策略 | `active` | 全局唯一，客户风险图与导出名单共同跟随 | 部分唯一索引 `uq_score_batches_active_one` 兜底，不可能出现两个现行版本 |
+| 历史版本 | `archived` | 被新版本切换下来的旧策略，永久保留 | 不再生效、不能重复发布/导出；`superseded_by` 指向接替批次 |
+
+- **发布即原子切换**：单事务 + 行锁，旧现行策略归档、草稿升为现行并分配单调 `policy_version`；任何失败整体回滚，不留半成品。并发发布会串行化，后到者得到 409。
+- **重复执行不新增版本**：同模型 + 同阈值/预算/成本/挽留比例（`policy_fingerprint` sha1）直接复用既有草稿或现行批次。
+- **名单跟随同一现行版本**：`/accounts` 风险名单、`/scores/export/active` 与 `/scores/{id}/export`（仅现行可导出）统一读取 `active` 批次；草稿与历史版本无法导出对外名单。
+- 新增端点：`GET /scores/active`、`GET /scores/{id}/diff`、`GET /scores/export/active`；发布响应返回 `switched / active / previous / active_count` 切换结果。
 
 ## 6. 快速启动
 
@@ -122,6 +135,7 @@ gb-576/
 | 角色 `admin/analyst/csm` | `backend/src/constants/roles.py` | `frontend/src/constants/roles.ts` |
 | 风险档 `high/medium/low` | `backend/src/constants/risk_band.py` | `frontend/src/constants/riskBand.ts` |
 | 训练状态 `pending/running/succeeded/failed` | `backend/src/constants/model_status.py` | `frontend/src/constants/modelStatus.ts` |
+| 策略生命周期 `draft/active/archived` | `backend/src/constants/score_lifecycle.py` | `frontend/src/constants/scoreLifecycle.ts` |
 | 特征目录（12 数值 + 3 类别） | `backend/src/constants/features.py` | `frontend/src/constants/features.ts` |
 
 ## 11. 视觉

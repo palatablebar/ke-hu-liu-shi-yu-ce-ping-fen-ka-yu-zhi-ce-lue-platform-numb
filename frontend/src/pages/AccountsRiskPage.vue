@@ -59,11 +59,12 @@ onMounted(async () => {
         <p class="eyebrow">Chart sheet 01 · Risk</p>
         <h1 class="page__title">客户风险图</h1>
         <p class="page__kicker">
-          最新评分批次按流失概率从高到低排列。{{ auth.isCsm ? '你的账号只看得到自己名下客户（服务端按 CSM 过滤）。' : '点开任意客户能看到概率、风险档与三条原因。' }}
+          名单只跟随已发布的<strong>现行策略</strong>，按流失概率从高到低排列；草稿调整在发布前不会出现在这里。
+          {{ auth.isCsm ? '你的账号只看得到自己名下客户（服务端按 CSM 过滤）。' : '点开任意客户能看到概率、风险档与三条原因。' }}
         </p>
       </div>
       <div class="page__meta">
-        最近批次：{{ store.page?.batch ? `#${store.page.batch.batch_no} · 阈值 ${store.page.batch.threshold}` : '—' }}<br />
+        现行策略：{{ store.page?.batch ? `v${store.page.batch.policy_version ?? '—'} · 阈值 ${store.page.batch.threshold}` : '尚未发布' }}<br />
         评分客户：{{ summary?.scored ?? '—' }} 家 · 高风险 {{ summary?.high_risk ?? '—' }} 家
       </div>
     </header>
@@ -95,7 +96,7 @@ onMounted(async () => {
           <EmptyState
             v-else-if="!store.page || !store.page.items.length"
             title="没有匹配的客户"
-            text="清空筛选，或确认最新评分批次是否成功。"
+            text="清空筛选，或确认是否已发布现行策略（草稿不会驱动风险名单）。"
           >
             <button class="btn btn--small" style="margin-top: 10px" type="button" @click="keyword = ''; band = ''; load()">清空筛选</button>
           </EmptyState>
@@ -173,8 +174,8 @@ onMounted(async () => {
                 CSM 的客户由 <span class="mono">csm_owner_email</span> 归属。
               </p>
               <p class="small muted">
-                最后更新：{{ store.page?.batch ? formatDate(store.page.batch.created_at) : '—' }} ·
-                模型批次 #{{ store.page?.batch?.model_run_id ?? '—' }}
+                现行策略发布于：{{ store.page?.batch ? formatDate(store.page.batch.published_at || store.page.batch.created_at) : '—' }} ·
+                策略版本 v{{ store.page?.batch?.policy_version ?? '—' }} · 模型批次 #{{ store.page?.batch?.model_run_id ?? '—' }}
               </p>
               <p class="small muted">
                 整体流失率 {{ ((overviewData?.churn_rate ?? 0) * 100).toFixed(1) }}%（5 个月 1200 行特征）。

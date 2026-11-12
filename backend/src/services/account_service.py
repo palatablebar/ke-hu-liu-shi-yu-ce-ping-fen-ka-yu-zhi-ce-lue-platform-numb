@@ -26,7 +26,8 @@ def risk_list(
     band: str,
     pagination: Pagination,
 ) -> dict:
-    batch = score_service.latest_batch(db)
+    # 风险图只跟随现行策略；草稿不影响名单，没有发布过策略时名单为空。
+    batch = score_service.active_batch(db)
     if batch is None:
         return {**as_page([], 0, pagination), "batch": None, "bands": {}}
     scope = _scope_email(actor)
@@ -71,7 +72,7 @@ def account_detail(db: Session, actor: dict, code: str) -> dict:
         .scalars()
         .all()
     )
-    batch = score_service.latest_batch(db)
+    batch = score_service.active_batch(db)
     score_row = None
     if batch is not None:
         score_row = next(
@@ -111,7 +112,7 @@ def overview(db: Session) -> dict:
     feature_count = int(db.execute(select(func.count(AccountFeature.id))).scalar() or 0)
     model_count = int(db.execute(select(func.count(ModelRun.id))).scalar() or 0)
     score_count = int(db.execute(select(func.count(ScoreBatch.id))).scalar() or 0)
-    batch = score_service.latest_batch(db)
+    batch = score_service.active_batch(db)
     model = model_service.latest_model(db)
     churn_sum, churn_total = db.execute(
         select(func.coalesce(func.sum(AccountFeature.churn_next_30d), 0), func.count(AccountFeature.id))
@@ -129,6 +130,8 @@ def overview(db: Session) -> dict:
         "churn_rate": round(int(churn_sum) / int(churn_total), 4) if churn_total else 0.0,
         "churn_positive_rows": int(churn_sum),
         "latest_model": model_service.model_payload(model) if model else None,
+        "active_batch": score_service.batch_payload(batch) if batch else None,
+        # 兼容旧前端字段名。
         "latest_batch": score_service.batch_payload(batch) if batch else None,
         "owners": [{"name": name, "accounts": int(count)} for name, count in owner_rows],
         "top_features": stats["features"][:5],

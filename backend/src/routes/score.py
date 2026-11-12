@@ -17,9 +17,20 @@ def _actor(request: Request) -> dict:
     }
 
 
+# 静态路径优先注册，避免被 /{batch_id} 参数路由遮蔽。
 @router.get("")
 def list_batches(limit: int = 20, db: Session = Depends(get_db)) -> dict:
     return score_controller.list_batches(db, limit)
+
+
+@router.get("/active")
+def active_batch(db: Session = Depends(get_db)) -> dict:
+    return score_controller.active_batch(db)
+
+
+@router.get("/export/active")
+def export_active(request: Request, db: Session = Depends(get_db)) -> Response:
+    return score_controller.export_active(db, _actor(request))
 
 
 @router.post("", status_code=201)
@@ -40,6 +51,11 @@ def publish(
     actor: dict = Depends(require_roles(Role.ADMIN)),
 ) -> dict:
     return score_controller.publish(db, batch_id, actor, request)
+
+
+@router.get("/{batch_id}/diff")
+def diff(batch_id: int, db: Session = Depends(get_db)) -> dict:
+    return score_controller.diff(db, batch_id)
 
 
 @router.get("/{batch_id}/export")

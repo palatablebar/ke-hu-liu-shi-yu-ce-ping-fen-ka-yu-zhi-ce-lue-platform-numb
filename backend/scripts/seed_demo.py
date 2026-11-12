@@ -33,6 +33,7 @@ from src.models.feature_set import FeatureSet  # noqa: E402
 from src.models.model_run import ModelRun  # noqa: E402
 from src.models.score_batch import ScoreBatch  # noqa: E402
 from src.models.user import User  # noqa: E402
+from src.constants.score_lifecycle import ScoreLifecycle  # noqa: E402
 from src.services import auth_service, model_service, score_service  # noqa: E402
 from src.services.fixture import (  # noqa: E402
     TRAIN_MONTHS,
@@ -181,7 +182,7 @@ def _seed_score_batch(db, model: ModelRun) -> ScoreBatch:
     existing = db.execute(select(ScoreBatch).where(ScoreBatch.label == SEED_SCORE_LABEL)).scalar_one_or_none()
     if existing is not None:
         return existing
-    return score_service.create_score_batch(
+    batch, _reused = score_service.create_score_batch(
         db,
         actor_email="seed@churnmod.io",
         threshold=settings.DEFAULT_THRESHOLD,
@@ -190,6 +191,16 @@ def _seed_score_batch(db, model: ModelRun) -> ScoreBatch:
         retention_lift=settings.EXPECTED_RETENTION_LIFT,
         model_run_id=model.id,
     )
+    return batch
+
+
+def _ensure_seed_policy_active(db, batch: ScoreBatch) -> None:
+    """种子批次作为系统的第一个现行策略（v1）；已存在现行策略时不抢占。"""
+    if batch.lifecycle == ScoreLifecycle.ACTIVE:
+        return
+    if score_service.active_batch(db) is not None:
+        return
+    score_service.publish_batch(db, batch.id, "seed@churnmod.io")
 
 
 def _summary(db) -> dict:
@@ -212,7 +223,8 @@ def run_seed() -> dict:
         inserted = _seed_features(db, dataset, accounts)
         _seed_feature_set(db)
         model = _seed_model(db)
-        _seed_score_batch(db, model)
+        score_batch = _seed_score_batch(db, model)
+        _ensure_seed_policy_active(db, score_batch)
         summary = _summary(db)
         line = "SEED_SUMMARY brand=churnmod " + " ".join(f"{key}={summary[key]}" for key in SUMMARY_KEYS)
         print(line, flush=True)

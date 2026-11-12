@@ -85,6 +85,10 @@ CREATE TABLE IF NOT EXISTS score_batches (
     label VARCHAR(64) NOT NULL UNIQUE,
     model_run_id INTEGER NOT NULL REFERENCES model_runs(id),
     status VARCHAR(16) NOT NULL DEFAULT 'succeeded',
+    lifecycle VARCHAR(16) NOT NULL DEFAULT 'draft',
+    policy_version INTEGER,
+    superseded_by INTEGER REFERENCES score_batches(id),
+    policy_fingerprint VARCHAR(80) NOT NULL DEFAULT '',
     threshold DOUBLE PRECISION NOT NULL,
     budget_total DOUBLE PRECISION NOT NULL,
     cost_per_account DOUBLE PRECISION NOT NULL,
@@ -99,6 +103,15 @@ CREATE TABLE IF NOT EXISTS score_batches (
     created_by VARCHAR(120) NOT NULL DEFAULT 'seed',
     created_at TIMESTAMP NOT NULL DEFAULT now()
 );
+
+-- 现行策略全局唯一：不可能同时留下两个 active 版本。
+CREATE UNIQUE INDEX IF NOT EXISTS uq_score_batches_active_one
+    ON score_batches (lifecycle)
+    WHERE lifecycle = 'active';
+-- 同一策略（同模型同参数）的未归档版本唯一：重复执行复用而非新增版本。
+CREATE UNIQUE INDEX IF NOT EXISTS uq_score_batches_fingerprint_open
+    ON score_batches (policy_fingerprint)
+    WHERE lifecycle <> 'archived';
 
 CREATE TABLE IF NOT EXISTS audit_logs (
     id SERIAL PRIMARY KEY,
